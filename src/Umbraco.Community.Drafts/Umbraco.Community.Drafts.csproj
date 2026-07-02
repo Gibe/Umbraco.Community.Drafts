@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <StaticWebAssetBasePath>/</StaticWebAssetBasePath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>Umbraco.Community.Drafts</Product>
+    <PackageId>Umbraco.Community.Drafts</PackageId>
+    <Title>Umbraco Drafts</Title>
+    <AssemblyName>Umbraco.Community.Drafts</AssemblyName>
+    <RootNamespace>Drafts</RootNamespace>
+    <Description>Drafts is a backoffice extension for Umbraco CMS (v17+) that auto-saves editors' work as they go, like Gmail. Drafts are stored per-user and accessible via a dedicated sidebar tree in the Content section.</Description>
+    <PackageTags>umbraco;umbraco-marketplace</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Umbraco.Cms.Web.Website" Version="*" />
+    <PackageReference Include="Umbraco.Cms.Web.Common" Version="*" />
+    <PackageReference Include="Umbraco.Cms.Api.Common" Version="*" />
+    <PackageReference Include="Umbraco.Cms.Api.Management" Version="*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Dont include the client folder as part of packaging nuget build -->
+    <Content Remove="Client\**" />
+
+    <!-- However make the umbraco-package.json included for dotnet pack or nuget package and visible to the solution -->
+    <None Include="Client\public\umbraco-package.json" Pack="false" />
+
+    <None Include="..\..\logo\umbraco-drafts-icon-128.png" Pack="true" PackagePath="\icon.png" />
+  </ItemGroup>
+
+</Project>
