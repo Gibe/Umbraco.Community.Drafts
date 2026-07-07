@@ -29,9 +29,8 @@ Umbraco composer and runs its database migrations automatically on startup.
 
 ## How it works
 
-Once installed, you'll see a **Drafts** header appear in the Content tree sidebar
-above the regular content nodes (similar to the Favourites package). The number of
-active drafts is shown in brackets.
+Once installed, you'll see a **Drafts** menu item in the Content tree sidebar
+below the recycle bin. The number of active drafts is shown.
 
 When you open any document in the backoffice and start editing, the package
 automatically saves a draft of your current work every 10 seconds. You'll see a
