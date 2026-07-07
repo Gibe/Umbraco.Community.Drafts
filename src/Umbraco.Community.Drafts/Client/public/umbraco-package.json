@@ -1,0 +1,14 @@
+{
+  "id": "Umbraco.Community.Drafts",
+  "name": "Umbraco.Community.Drafts",
+  "version": "0.0.0",
+  "allowTelemetry": true,
+  "extensions": [
+    {
+      "name": "Drafts Bundle",
+      "alias": "Drafts.Bundle",
+      "type": "bundle",
+      "js": "/App_Plugins/Drafts/drafts.js"
+    }
+  ]
+}

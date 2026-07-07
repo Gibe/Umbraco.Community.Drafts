@@ -1,0 +1,44 @@
+{
+  "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
+  "AuthorDetails": {
+    "Name": "Gibe Digital Ltd",
+    "Description": "Based in Bristol, we are a full service digital agency with a strong focus on technical development.",
+    "Url": "https://gibe.digital/",
+    "ImageUrl": "https://github.com/Gibe.png",
+    "Contributors": [
+      {
+        "Name": "Matt Begent",
+        "Url": "https://github.com/mattbegent"
+      }
+    ],
+    "SyncContributorsFromRepository": false
+  },
+  "Category": "Editor Tools",
+  "Description": "Auto-save your work as you go, just like Gmail. Never lose your edits again.",
+  "DocumentationUrl": "https://github.com/Gibe/Umbraco.Community.Drafts",
+  "LicenseTypes": [ "Free" ],
+  "IssueTrackerUrl": "https://github.com/Gibe/Umbraco.Community.Drafts/issues",
+  "PackageType": "Package",
+  "Screenshots": [
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-1.png"
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-2.png"
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-3.png"
+    }
+  ],
+  "Tags": [
+    "drafts",
+    "draft",
+    "autosave",
+    "auto-save",
+    "backoffice",
+    "content",
+    "editing"
+  ],
+  "Title": "Drafts",
+  "VersionDependencyMode": "Default"
+}

@@ -1,0 +1,23 @@
+# Build output
+**/wwwroot/App_Plugins/
+!**/wwwroot/App_Plugins/.gitkeep
+
+# Node
+**/node_modules/
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+
+# .NET
+bin/
+obj/
+*.nupkg
+
+# OS
+.DS_Store
+Thumbs.db
+
+.agents/*

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Umbraco.Community.Drafts\Umbraco.Community.Drafts.csproj" />
+  <Project Path="Umbraco.Community.Drafts.TestSite\Umbraco.Community.Drafts.TestSite.csproj" />
+</Solution>
