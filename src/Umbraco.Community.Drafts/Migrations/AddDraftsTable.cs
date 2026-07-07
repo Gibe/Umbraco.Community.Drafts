@@ -7,11 +7,13 @@ public class AddDraftsTable : AsyncMigrationBase
 {
     public AddDraftsTable(IMigrationContext context) : base(context) { }
 
-    protected override async Task MigrateAsync()
+    protected override Task MigrateAsync()
     {
         if (!TableExists(Draft.TableName))
         {
             Create.Table<Draft>().Do();
         }
+
+        return Task.CompletedTask;
     }
 }

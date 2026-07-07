@@ -62,7 +62,7 @@ public class DraftsApiController : DraftsApiControllerBase
                     }
                     : null;
             })
-            .Where(d => d != null)
+            .OfType<DraftResponse>()
             .ToList();
 
         return Ok(results);

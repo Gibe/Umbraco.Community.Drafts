@@ -126,13 +126,11 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
     if (!forceLoad && this._lastCheckedNodeKey === this._nodeKey) return;
     this._lastCheckedNodeKey = this._nodeKey;
 
-    try {
       const token = await this._authContext?.getLatestToken();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await fetch(`/umbraco/drafts/api/v1/drafts/${this._nodeKey}`, {
         credentials: "include",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
+        headers,
       });
 
       if (response.ok) {

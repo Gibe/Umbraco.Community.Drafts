@@ -35,7 +35,7 @@ public class DraftsRepository : IDraftsRepository
     {
         using var scope = _scopeProvider.CreateScope();
         var result = scope.Database.FirstOrDefault<Draft>(
-            "WHERE userKey = @0 AND nodeKey = @1", userKey, nodeKey);
+            "WHERE userKey = @0 AND nodeKey = @1 ORDER BY savedAt DESC", userKey, nodeKey);
         scope.Complete();
         return result;
     }

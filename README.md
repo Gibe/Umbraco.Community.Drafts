@@ -4,7 +4,7 @@ Auto-save your work as you go, just like Gmail. Never lose your edits again.
 
 ## Features
 
-- **Auto-save as you work** — drafts are saved automatically every 30 seconds while you edit a document in the backoffice, no action needed
+- **Auto-save as you work** — drafts are saved automatically every 10 seconds while you edit a document in the backoffice, no action needed
 - **Drafts sidebar tree** — a sidebar panel in the Content section shows all your saved drafts with one-click navigation
 - **Draft count badge** — see at a glance how many drafts you have in the sidebar header
 - **Discard drafts** — remove any draft from the sidebar when you no longer need it
@@ -34,7 +34,7 @@ above the regular content nodes (similar to the Favourites package). The number 
 active drafts is shown in brackets.
 
 When you open any document in the backoffice and start editing, the package
-automatically saves a draft of your current work every 30 seconds. You'll see a
+automatically saves a draft of your current work every 10 seconds. You'll see a
 subtle "Draft saved" indicator in the workspace toolbar.
 
 If you navigate away or your browser crashes, your work is preserved. Simply click

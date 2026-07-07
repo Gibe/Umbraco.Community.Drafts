@@ -12,6 +12,7 @@ namespace Umbraco.Community.Drafts.Composers
         public void Compose(IUmbracoBuilder builder)
         {
             builder.Services.AddScoped<IDraftsRepository, DraftsRepository>();
+            builder.Services.AddUnique<Umbraco.Cms.Core.Packaging.IPackageMigrationPlan, Umbraco.Community.Drafts.Migrations.DraftsMigrationPlan>();
 
             builder.AddNotificationHandler<ContentMovedToRecycleBinNotification,
                 ContentMovedToRecycleBinNotificationHandler>();
