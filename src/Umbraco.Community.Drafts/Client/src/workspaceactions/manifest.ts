@@ -18,4 +18,10 @@ export const manifests: Array<UmbExtensionManifest> = [
     name: "Drafts Diff Modal",
     element: () => import("./draft-diff-modal.element.js"),
   },
+  {
+    type: "backofficeEntryPoint",
+    alias: "Drafts.EntryPoint.DiscardChangesModal",
+    name: "Drafts Discard Changes Modal Entry Point",
+    js: () => import("./discard-changes-modal.entrypoint.js"),
+  },
 ];
