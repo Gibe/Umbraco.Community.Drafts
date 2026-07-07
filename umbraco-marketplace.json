@@ -19,6 +19,17 @@
   "LicenseTypes": [ "Free" ],
   "IssueTrackerUrl": "https://github.com/Gibe/Umbraco.Community.Drafts/issues",
   "PackageType": "Package",
+  "Screenshots": [
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-1.png"
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-2.png"
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-3.png"
+    }
+  ],
   "Tags": [
     "drafts",
     "draft",

@@ -2,8 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Umbraco.Cms.Core.Composing;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Notifications;
+using Umbraco.Community.Drafts.Migrations;
 using Umbraco.Community.Drafts.NotificationHandlers;
 using Umbraco.Community.Drafts.Repositories;
+using Umbraco.Extensions;
 
 namespace Umbraco.Community.Drafts.Composers
 {
@@ -12,7 +14,7 @@ namespace Umbraco.Community.Drafts.Composers
         public void Compose(IUmbracoBuilder builder)
         {
             builder.Services.AddScoped<IDraftsRepository, DraftsRepository>();
-            builder.Services.AddUnique<Umbraco.Cms.Core.Packaging.IPackageMigrationPlan, Umbraco.Community.Drafts.Migrations.DraftsMigrationPlan>();
+            builder.PackageMigrationPlans().Add<DraftsMigrationPlan>();
 
             builder.AddNotificationHandler<ContentMovedToRecycleBinNotification,
                 ContentMovedToRecycleBinNotificationHandler>();

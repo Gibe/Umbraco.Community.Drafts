@@ -126,6 +126,7 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
     if (!forceLoad && this._lastCheckedNodeKey === this._nodeKey) return;
     this._lastCheckedNodeKey = this._nodeKey;
 
+    try {
       const token = await this._authContext?.getLatestToken();
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await fetch(`/umbraco/drafts/api/v1/drafts/${this._nodeKey}`, {
@@ -157,9 +158,7 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
               await fetch(`/umbraco/drafts/api/v1/drafts/${this._nodeKey}`, {
                 method: "DELETE",
                 credentials: "include",
-                headers: {
-                  "Authorization": `Bearer ${token}`,
-                },
+                headers,
               });
 
               this._notificationContext?.peek("positive", {
@@ -210,6 +209,7 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
 
     try {
       const token = await this._authContext?.getLatestToken();
+      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
       // Get the current property values from the workspace context
       const values = this._workspaceContext.getValues();
@@ -226,9 +226,7 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
             {
               method: "GET",
               credentials: "include",
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
+              headers: authHeaders,
             }
           );
 
@@ -246,7 +244,7 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          ...authHeaders,
         },
         body: JSON.stringify({
           nodeKey: this._nodeKey,
