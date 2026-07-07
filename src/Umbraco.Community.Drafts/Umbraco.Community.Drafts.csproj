@@ -11,7 +11,7 @@
     <PackageId>Umbraco.Community.Drafts</PackageId>
     <Title>Umbraco Drafts</Title>
     <AssemblyName>Umbraco.Community.Drafts</AssemblyName>
-    <RootNamespace>Drafts</RootNamespace>
+    <RootNamespace>Umbraco.Community.Drafts</RootNamespace>
     <Description>Drafts is a backoffice extension for Umbraco CMS (v17+) that auto-saves editors' work as they go, like Gmail. Drafts are stored per-user and accessible via a dedicated sidebar tree in the Content section.</Description>
     <PackageTags>umbraco;umbraco-marketplace</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -19,10 +19,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Umbraco.Cms.Web.Website" Version="*" />
-    <PackageReference Include="Umbraco.Cms.Web.Common" Version="*" />
-    <PackageReference Include="Umbraco.Cms.Api.Common" Version="*" />
-    <PackageReference Include="Umbraco.Cms.Api.Management" Version="*" />
+    <PackageReference Include="Umbraco.Cms.Web.Website" Version="[17.0.0,)" />
+    <PackageReference Include="Umbraco.Cms.Web.Common" Version="[17.0.0,)" />
+    <PackageReference Include="Umbraco.Cms.Api.Common" Version="[17.0.0,)" />
+    <PackageReference Include="Umbraco.Cms.Api.Management" Version="[17.0.0,)" />
   </ItemGroup>
 
   <ItemGroup>

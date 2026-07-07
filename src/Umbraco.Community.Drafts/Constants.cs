@@ -1,4 +1,4 @@
-namespace Drafts
+namespace Umbraco.Community.Drafts
 {
     public class Constants
     {

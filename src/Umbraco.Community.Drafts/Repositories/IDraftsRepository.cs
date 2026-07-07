@@ -1,7 +1,7 @@
-using Drafts.Models;
+using Umbraco.Community.Drafts.Models;
 using Umbraco.Cms.Infrastructure.Scoping;
 
-namespace Drafts.Repositories;
+namespace Umbraco.Community.Drafts.Repositories;
 
 public interface IDraftsRepository
 {

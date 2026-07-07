@@ -1,7 +1,7 @@
 using NPoco;
 using Umbraco.Cms.Infrastructure.Persistence.DatabaseAnnotations;
 
-namespace Drafts.Models;
+namespace Umbraco.Community.Drafts.Models;
 
 [TableName(TableName)]
 [PrimaryKey("id", AutoIncrement = true)]

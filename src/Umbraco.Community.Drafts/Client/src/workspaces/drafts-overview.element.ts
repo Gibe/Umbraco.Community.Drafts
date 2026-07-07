@@ -1,11 +1,10 @@
 import {
-  LitElement,
   css,
   html,
   customElement,
   state,
 } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin } from "@umbraco-cms/backoffice/element-api";
+import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { UMB_MODAL_MANAGER_CONTEXT, UMB_CONFIRM_MODAL } from "@umbraco-cms/backoffice/modal";
@@ -17,7 +16,7 @@ interface DraftItem {
 }
 
 @customElement("drafts-overview-workspace")
-export class DraftsOverviewWorkspace extends UmbElementMixin(LitElement) {
+export class DraftsOverviewWorkspace extends UmbLitElement {
   @state() private _drafts: DraftItem[] = [];
   @state() private _loading = true;
 
@@ -135,8 +134,7 @@ export class DraftsOverviewWorkspace extends UmbElementMixin(LitElement) {
   }
 
   private _formatDate(savedAt: string): string {
-    const utc = savedAt && !savedAt.endsWith('Z') && !/[+\-]\d{2}:\d{2}$/.test(savedAt) ? savedAt + 'Z' : savedAt;
-    return new Date(utc).toLocaleString();
+    return new Date(savedAt).toLocaleString();
   }
 
   private _navigateToNode(nodeKey: string) {
@@ -168,11 +166,11 @@ export class DraftsOverviewWorkspace extends UmbElementMixin(LitElement) {
               label="Empty drafts"
               ?disabled=${this._drafts.length === 0}
               @click=${this._emptyDrafts}
-              style="margin-top: -10px"
+              class="empty-drafts-btn"
             >
               Empty drafts
             </uui-button>
-              <uui-table class="uui-text" style="margin-top: var(--uui-size-layout-2, 30px);">
+              <uui-table class="uui-text table-spaced">
                 <uui-table-head>
                   <uui-table-head-cell>Name</uui-table-head-cell>
                   <uui-table-head-cell>Last updated</uui-table-head-cell>
@@ -223,6 +221,14 @@ export class DraftsOverviewWorkspace extends UmbElementMixin(LitElement) {
       display: flex;
       gap: var(--uui-size-4, 8px);
       padding: var(--uui-size-4, 8px) 0;
+    }
+
+    .empty-drafts-btn {
+      margin-top: calc(var(--uui-size-3, 6px) * -1);
+    }
+
+    .table-spaced {
+      margin-top: var(--uui-size-layout-2, 30px);
     }
 
     uui-table {

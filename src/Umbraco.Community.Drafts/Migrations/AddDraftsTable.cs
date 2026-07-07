@@ -1,7 +1,7 @@
-using Drafts.Models;
+using Umbraco.Community.Drafts.Models;
 using Umbraco.Cms.Infrastructure.Migrations;
 
-namespace Drafts.Migrations;
+namespace Umbraco.Community.Drafts.Migrations;
 
 public class AddDraftsTable : AsyncMigrationBase
 {

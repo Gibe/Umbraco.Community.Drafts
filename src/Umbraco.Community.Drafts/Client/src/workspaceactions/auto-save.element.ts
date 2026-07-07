@@ -1,12 +1,11 @@
 import {
-  LitElement,
   css,
   html,
   nothing,
   customElement,
   state,
 } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin } from "@umbraco-cms/backoffice/element-api";
+import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UMB_DOCUMENT_WORKSPACE_CONTEXT } from "@umbraco-cms/backoffice/document";
 import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { UmbVariantId } from "@umbraco-cms/backoffice/variant";
@@ -15,7 +14,7 @@ import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { DRAFT_DIFF_MODAL_TOKEN } from "./draft-diff-modal.token.js";
 
 @customElement("drafts-auto-save-action")
-export default class DraftsAutoSaveElement extends UmbElementMixin(LitElement) {
+export default class DraftsAutoSaveElement extends UmbLitElement {
   private _autoSaveInterval: ReturnType<typeof setInterval> | null = null;
   private _workspaceContext?: typeof UMB_DOCUMENT_WORKSPACE_CONTEXT.TYPE;
   private _authContext?: typeof UMB_AUTH_CONTEXT.TYPE;

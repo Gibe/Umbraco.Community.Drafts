@@ -1,8 +1,8 @@
-using Drafts.Repositories;
+using Umbraco.Community.Drafts.Repositories;
 using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.Notifications;
 
-namespace Drafts.NotificationHandlers;
+namespace Umbraco.Community.Drafts.NotificationHandlers;
 
 public class ContentMovedToRecycleBinNotificationHandler
     : INotificationHandler<ContentMovedToRecycleBinNotification>

@@ -1,11 +1,13 @@
 using Asp.Versioning;
-using Drafts.Repositories;
+using Umbraco.Community.Drafts.Models;
+using Umbraco.Community.Drafts.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Security;
 using Umbraco.Cms.Core.Services;
 
-namespace Drafts.Controllers;
+namespace Umbraco.Community.Drafts.Controllers;
 
 [ApiVersion("1.0")]
 [ApiExplorerSettings(GroupName = "Drafts")]
@@ -14,15 +16,24 @@ public class DraftsApiController : DraftsApiControllerBase
     private readonly IDraftsRepository _draftsRepository;
     private readonly IBackOfficeSecurityAccessor _backOfficeSecurityAccessor;
     private readonly IContentService _contentService;
+    private readonly IIdKeyMap _idKeyMap;
 
     public DraftsApiController(
         IDraftsRepository draftsRepository,
         IBackOfficeSecurityAccessor backOfficeSecurityAccessor,
-        IContentService contentService)
+        IContentService contentService,
+        IIdKeyMap idKeyMap)
     {
         _draftsRepository = draftsRepository;
         _backOfficeSecurityAccessor = backOfficeSecurityAccessor;
         _contentService = contentService;
+        _idKeyMap = idKeyMap;
+    }
+
+    private IContent? GetContentByKey(Guid key)
+    {
+        var idAttempt = _idKeyMap.GetIdForKey(key, UmbracoObjectTypes.Document);
+        return idAttempt.Success ? _contentService.GetById(idAttempt.Result) : null;
     }
 
     private Guid GetCurrentUserKey()
@@ -41,7 +52,7 @@ public class DraftsApiController : DraftsApiControllerBase
         var results = drafts
             .Select(d =>
             {
-                var content = _contentService.GetById(d.NodeKey);
+                var content = GetContentByKey(d.NodeKey);
                 return content != null
                     ? new DraftResponse
                     {
@@ -68,7 +79,7 @@ public class DraftsApiController : DraftsApiControllerBase
         if (draft == null)
             return NotFound();
 
-        var content = _contentService.GetById(draft.NodeKey);
+        var content = GetContentByKey(draft.NodeKey);
 
         return Ok(new DraftDetailResponse
         {
@@ -105,25 +116,4 @@ public class DraftsApiController : DraftsApiControllerBase
         _draftsRepository.RemoveAllDrafts(userKey);
         return Ok();
     }
-}
-
-public class SaveDraftRequest
-{
-    public Guid NodeKey { get; set; }
-    public string ContentData { get; set; } = string.Empty;
-}
-
-public class DraftResponse
-{
-    public Guid NodeKey { get; set; }
-    public string NodeName { get; set; } = string.Empty;
-    public DateTime SavedAt { get; set; }
-}
-
-public class DraftDetailResponse
-{
-    public Guid NodeKey { get; set; }
-    public string NodeName { get; set; } = string.Empty;
-    public string ContentData { get; set; } = string.Empty;
-    public DateTime SavedAt { get; set; }
 }

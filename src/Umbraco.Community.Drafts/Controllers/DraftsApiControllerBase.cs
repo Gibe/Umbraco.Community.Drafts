@@ -3,8 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Umbraco.Cms.Api.Common.Attributes;
 using Umbraco.Cms.Web.Common.Authorization;
 using Umbraco.Cms.Web.Common.Routing;
+using Umbraco.Community.Drafts;
 
-namespace Drafts.Controllers
+namespace Umbraco.Community.Drafts.Controllers
 {
     [ApiController]
     [BackOfficeRoute("drafts/api/v{version:apiVersion}")]

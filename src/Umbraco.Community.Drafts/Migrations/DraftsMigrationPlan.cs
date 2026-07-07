@@ -1,6 +1,6 @@
 using Umbraco.Cms.Core.Packaging;
 
-namespace Drafts.Migrations;
+namespace Umbraco.Community.Drafts.Migrations;
 
 public class DraftsMigrationPlan : PackageMigrationPlan
 {

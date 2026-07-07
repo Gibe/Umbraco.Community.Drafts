@@ -1,9 +1,9 @@
-import { css, html, customElement, state, LitElement } from '@umbraco-cms/backoffice/external/lit';
-import { UmbElementMixin } from '@umbraco-cms/backoffice/element-api';
+import { css, html, customElement, state } from '@umbraco-cms/backoffice/external/lit';
+import { UmbLitElement } from '@umbraco-cms/backoffice/lit-element';
 import './drafts-list.element.js';
 
 @customElement('drafts-sidebar-item')
-export default class DraftsSidebarItemElement extends UmbElementMixin(LitElement) {
+export default class DraftsSidebarItemElement extends UmbLitElement {
   @state() private _isOpen = false;
   @state() private _draftCount = 0;
 

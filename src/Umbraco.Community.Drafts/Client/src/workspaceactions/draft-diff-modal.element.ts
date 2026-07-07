@@ -265,11 +265,7 @@ export class DraftsDiffModalElement extends UmbLitElement {
 
   render() {
     const rawSavedAt: string = this.modalContext?.data?.savedAt ?? "";
-    // Ensure the date string is treated as UTC (server returns DateTime without 'Z')
-    const utcSavedAt = rawSavedAt && !rawSavedAt.endsWith('Z') && !/[+\-]\d{2}:\d{2}$/.test(rawSavedAt)
-      ? rawSavedAt + 'Z'
-      : rawSavedAt;
-    const savedAt = utcSavedAt ? new Date(utcSavedAt).toLocaleString() : '';
+    const savedAt = rawSavedAt ? new Date(rawSavedAt).toLocaleString() : '';
     const rows = this.#getDiff();
     const hasChanges = rows.some((r) => r.changed);
 

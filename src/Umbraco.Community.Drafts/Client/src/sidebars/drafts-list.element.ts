@@ -1,11 +1,10 @@
 import {
-  LitElement,
   css,
   html,
   customElement,
   state,
 } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin } from "@umbraco-cms/backoffice/element-api";
+import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 
@@ -16,7 +15,7 @@ interface DraftItem {
 }
 
 @customElement("drafts-list")
-export class DraftsList extends UmbElementMixin(LitElement) {
+export class DraftsList extends UmbLitElement {
   @state()
   private _drafts: DraftItem[] = [];
 
@@ -39,10 +38,6 @@ export class DraftsList extends UmbElementMixin(LitElement) {
     this.consumeContext(UMB_NOTIFICATION_CONTEXT, (ctx) => {
       this._notificationContext = ctx;
     });
-
-    // listen for drafts-updated event to refresh the list when a draft is added or removed
-    window.addEventListener("drafts-updated", this._boundRefresh);
-
   }
 
   disconnectedCallback() {
@@ -122,8 +117,7 @@ export class DraftsList extends UmbElementMixin(LitElement) {
   }
 
   private _formatTime(savedAt: string): string {
-    const utc = savedAt && !savedAt.endsWith('Z') && !/[+\-]\d{2}:\d{2}$/.test(savedAt) ? savedAt + 'Z' : savedAt;
-    const date = new Date(utc);
+    const date = new Date(savedAt);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -140,7 +134,7 @@ export class DraftsList extends UmbElementMixin(LitElement) {
 
   render() {
     if (this._loading) {
-      return html``;
+      return html`<uui-loader></uui-loader>`;
     }
 
     if (this._drafts.length === 0) {
