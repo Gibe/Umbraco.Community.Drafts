@@ -25,8 +25,7 @@ jobs:
     - name: Setup Node
       uses: actions/setup-node@v4
       with:
-        node-version: 24.18.0
-
+        node-version: 20.17.0
     - name: Build frontend
       working-directory: src/Umbraco.Community.Drafts/Client
       run: |

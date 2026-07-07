@@ -24,8 +24,7 @@ body:
   id: "summary"
   attributes:
     label: "Bug summary"
-    description: "Write a summary of the bug."
-    description: "Remember that you can format code and logs nicely with the `<>` button"
+    description: "Write a summary of the bug. Remember that you can format code and logs nicely with the `<>` button"
     placeholder: >
       Try to pinpoint it as much as possible.
       
