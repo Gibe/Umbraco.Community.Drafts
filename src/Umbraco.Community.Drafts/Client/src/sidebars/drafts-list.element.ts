@@ -137,9 +137,9 @@ export class DraftsList extends UmbLitElement {
       return html`<uui-loader></uui-loader>`;
     }
 
-    if (this._drafts.length === 0) {
-      return html`<uui-menu-item label="No drafts" disabled></uui-menu-item>`;
-    }
+    // if (this._drafts.length === 0) {
+    //   return html`<uui-menu-item label="No drafts" disabled></uui-menu-item>`;
+    // }
 
     return html`
       ${this._drafts.map(

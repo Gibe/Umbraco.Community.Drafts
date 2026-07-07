@@ -146,6 +146,12 @@ export class DraftsOverviewWorkspace extends UmbLitElement {
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
 
+  private _onDraftLinkClick(e: MouseEvent, nodeKey: string) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    this._navigateToNode(nodeKey);
+  }
+
   render() {
     return html`
       <umb-body-layout headline="Drafts">
@@ -180,14 +186,14 @@ export class DraftsOverviewWorkspace extends UmbLitElement {
                   (draft) => html`
                     <uui-table-row>
                       <uui-table-cell>
-                        <uui-button
-                          look="placeholder"
-                          label=${draft.nodeName}
-                          @click=${() => this._navigateToNode(draft.nodeKey)}
+                        <a
+                          class="draft-link"
+                          href="/umbraco/section/content/workspace/document/edit/${draft.nodeKey}?draft=true"
+                          @click=${(e: MouseEvent) => this._onDraftLinkClick(e, draft.nodeKey)}
                         >
-                          <uui-icon name="icon-document" slot="icon"></uui-icon>
+                          <uui-icon name="icon-document"></uui-icon>
                           ${draft.nodeName}
-                        </uui-button>
+                        </a>
                       </uui-table-cell>
                       <uui-table-cell>${this._formatDate(draft.savedAt)}</uui-table-cell>
                       <uui-table-cell>
@@ -229,6 +235,20 @@ export class DraftsOverviewWorkspace extends UmbLitElement {
 
     .table-spaced {
       margin-top: var(--uui-size-layout-2, 30px);
+    }
+
+    .draft-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--uui-size-space-3, 6px);
+      color: var(--uui-color-interactive, #1b264f);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .draft-link:hover,
+    .draft-link:focus {
+      color: var(--uui-color-interactive-emphasis, #1d43b3);
     }
 
     uui-table {
