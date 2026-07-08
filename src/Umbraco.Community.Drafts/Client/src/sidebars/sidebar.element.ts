@@ -24,6 +24,7 @@ export default class DraftsSidebarItemElement extends UmbLitElement {
         @show-children=${() => { this._isOpen = true; }}
         @hide-children=${() => { this._isOpen = false; }}
         @click-label=${this._navigateToDraftsOverview}
+        label="Drafts"
       >
         <uui-icon slot="icon" name="icon-documents"></uui-icon>
         <span slot="label" class="label-slot">

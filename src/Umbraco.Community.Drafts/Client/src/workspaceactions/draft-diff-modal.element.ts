@@ -22,6 +22,9 @@ export class DraftsDiffModalElement extends UmbLitElement {
   @state()
   private _mediaUrls = new Map<string, string>();
 
+  @state()
+  private _hideUnchanged = false;
+
   #authContext: UmbAuthContext | undefined;
 
   constructor() {
@@ -35,7 +38,12 @@ export class DraftsDiffModalElement extends UmbLitElement {
     super.updated(changedProperties);
     if (changedProperties.has('modalContext')) {
       this.#loadMediaUrls();
+      this._hideUnchanged = false;
     }
+  }
+
+  #toggleHideUnchanged() {
+    this._hideUnchanged = !this._hideUnchanged;
   }
 
   #extractMediaKeys(value: unknown): string[] {
@@ -138,10 +146,33 @@ export class DraftsDiffModalElement extends UmbLitElement {
         const stripped = obj["markup"].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         return stripped || "(empty)";
       }
-      // Block editor (contentData array)
+      // Block editor (contentData array) — format each block's inner property
+      // values so edits inside a block (not just adding/removing blocks) are detected
       if (Array.isArray(obj["contentData"])) {
-        const count = obj["contentData"].length;
-        return `${count} block${count !== 1 ? "s" : ""}`;
+        const contentData = obj["contentData"] as Record<string, unknown>[];
+        const settingsData = Array.isArray(obj["settingsData"])
+          ? (obj["settingsData"] as Record<string, unknown>[])
+          : [];
+        if (contentData.length === 0) return "(empty)";
+
+        const formatBlockItem = (item: Record<string, unknown>): string => {
+          const props = Object.entries(item)
+            .filter(([k]) => k !== "key" && k !== "contentTypeKey" && k !== "udi")
+            .map(([k, v]) => `${this.#formatAlias(k)}: ${this.#formatValueFriendly(v)}`);
+          return props.length ? props.join("; ") : "(no properties)";
+        };
+
+        const blocks = contentData.map(
+          (item, i) => `Block ${i + 1}: ${formatBlockItem(item)}`
+        );
+        if (settingsData.length > 0) {
+          blocks.push(
+            ...settingsData.map(
+              (item, i) => `Settings ${i + 1}: ${formatBlockItem(item)}`
+            )
+          );
+        }
+        return blocks.join("\n");
       }
       // Single media / content picker
       if (typeof obj["mediaKey"] === "string") return obj["mediaKey"];
@@ -268,6 +299,7 @@ export class DraftsDiffModalElement extends UmbLitElement {
     const savedAt = rawSavedAt ? new Date(rawSavedAt).toLocaleString() : '';
     const rows = this.#getDiff();
     const hasChanges = rows.some((r) => r.changed);
+    const visibleRows = this._hideUnchanged ? rows.filter((r) => r.changed) : rows;
 
     return html`
       <umb-body-layout headline="Unsaved draft found">
@@ -278,7 +310,16 @@ export class DraftsDiffModalElement extends UmbLitElement {
 
         ${!hasChanges
           ? html`<p class="no-changes">No differences detected between the draft and current content.</p>`
-          : ""}
+          : html`<div class="diff-toolbar">
+              <uui-button
+                look="secondary"
+                compact
+                @click=${this.#toggleHideUnchanged}
+                label=${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
+              >
+                ${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
+              </uui-button>
+            </div>`}
 
         <div class="diff-table">
           <div class="diff-header">
@@ -289,7 +330,7 @@ export class DraftsDiffModalElement extends UmbLitElement {
               <span class="diff-col-date">${savedAt}</span>
             </div>
           </div>
-          ${rows.map((row) => {
+          ${visibleRows.map((row) => {
             const tokens = row.changed
               ? this.#computeInlineDiff(row.currentStr, row.draftStr)
               : null;
@@ -345,6 +386,12 @@ export class DraftsDiffModalElement extends UmbLitElement {
       .no-changes {
         color: var(--uui-color-text-alt);
         font-style: italic;
+      }
+
+      .diff-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: var(--uui-size-3);
       }
 
       .diff-table {

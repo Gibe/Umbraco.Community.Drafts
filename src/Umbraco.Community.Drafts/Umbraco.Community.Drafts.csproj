@@ -10,12 +10,14 @@
     <Product>Umbraco.Community.Drafts</Product>
     <PackageId>Umbraco.Community.Drafts</PackageId>
     <Title>Umbraco Drafts</Title>
+    <Authors>Matt Begent</Authors>
     <AssemblyName>Umbraco.Community.Drafts</AssemblyName>
     <RootNamespace>Umbraco.Community.Drafts</RootNamespace>
-    <Description>Drafts is a backoffice extension for Umbraco CMS (v17+) that auto-saves editors' work as they go, like Gmail. Drafts are stored per-user and accessible via a dedicated sidebar tree in the Content section.</Description>
+    <Description>Drafts is a backoffice extension for Umbraco CMS (v17+) that auto-saves editors' work as they go, like Gmail. Drafts are stored per-user and accessible below the Recycle Bin.</Description>
     <PackageTags>umbraco;umbraco-marketplace</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,6 +35,7 @@
     <None Include="Client\public\umbraco-package.json" Pack="false" />
 
     <None Include="..\..\logo\umbraco-drafts-icon-128.png" Pack="true" PackagePath="\icon.png" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\README.md" />
   </ItemGroup>
 
 </Project>
