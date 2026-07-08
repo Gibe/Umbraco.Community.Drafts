@@ -21,6 +21,10 @@
   "PackageType": "Package",
   "Screenshots": [
     {
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-demo.gif",
+      "Caption": "A demo of the Drafts package in action. The content editor is making changes to a page, and the draft is auto-saved. The user then navigates away from the page and returns to find their draft still available."
+    },
+    {
       "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-1.png",
       "Caption": "Content editor showing a draft has been auto-saved and the Drafts menu item in the sidebar below the Recycle Bin."
     },
