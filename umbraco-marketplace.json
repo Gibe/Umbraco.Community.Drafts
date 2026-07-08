@@ -21,13 +21,16 @@
   "PackageType": "Package",
   "Screenshots": [
     {
-      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-1.png"
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-1.png",
+      "Caption": "Content editor showing a draft has been auto-saved and the Drafts menu item in the sidebar below the Recycle Bin."
     },
     {
-      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-2.png"
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-2.png",
+      "Caption": "List of drafts displayed in a table. Empty drafts button shown above the table."
     },
     {
-      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-3.png"
+      "ImageUrl": "https://raw.githubusercontent.com/Gibe/Umbraco.Community.Drafts/main/screenshots/drafts-screenshot-3.png",
+      "Caption": "Modal showing a difference between the current content and a draft. The user can choose to load the draft or discard it."
     }
   ],
   "Tags": [
