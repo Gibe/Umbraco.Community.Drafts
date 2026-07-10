@@ -13,6 +13,7 @@ import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { DRAFT_DIFF_MODAL_TOKEN, type DraftDiffModalData, type DraftDiffModalValue } from "./draft-diff-modal.token.js";
 import { buildValueKey, buildVariantKey } from "./draft-row-key.js";
+import { buildDiffRows } from "./draft-diff.js";
 
 @customElement("drafts-auto-save-action")
 export default class DraftsAutoSaveElement extends UmbLitElement {
@@ -146,10 +147,24 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
         if (!forceLoad) {
           const currentValues = this._workspaceContext?.getValues() ?? [];
           const currentVariants = this._workspaceContext?.getVariants() ?? [];
+          const currentContent = { values: currentValues as any, variants: currentVariants as any };
+
+          // If the draft is identical to the current content there is nothing
+          // to review — delete it quietly instead of showing the modal.
+          const hasChanges = buildDiffRows(currentContent, data).some((row) => row.changed);
+          if (!hasChanges) {
+            await fetch(`/umbraco/drafts/api/v1/drafts/${this._nodeKey}`, {
+              method: "DELETE",
+              credentials: "include",
+              headers,
+            });
+            window.dispatchEvent(new CustomEvent("drafts-updated"));
+            return;
+          }
 
           const result = await this._openDiffModal({
             savedAt: draft.savedAt,
-            currentContent: { values: currentValues as any, variants: currentVariants as any },
+            currentContent,
             draftContent: data,
           });
 
