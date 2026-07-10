@@ -26,6 +26,8 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
   private _lastCheckedNodeKey: string | null = null;
   private _isPersistedDataLoaded = false;
   private _modalManagerContext?: typeof UMB_MODAL_MANAGER_CONTEXT.TYPE;
+  /** Bumped on every server-side save so in-flight auto-saves can tell their data is stale. */
+  private _saveGeneration = 0;
 
   @state()
   private _status: "idle" | "dirty" | "saving" | "saved" = "idle";
@@ -61,20 +63,21 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
           this._checkAndLoadDraft();
           return;
         }
-        // Document was saved — remove draft from sidebar immediately
+        // Document was saved — the server deleted the draft. Sync our
+        // baseline to the just-saved content so the next auto-save tick
+        // doesn't immediately recreate the draft from pre-save edits.
+        this._saveGeneration++;
+        this._lastSavedData = this._getContentSnapshot();
         this._status = 'idle';
         window.dispatchEvent(new CustomEvent('drafts-updated'));
       });
 
       // Capture initial state
-      const values = ctx?.getValues();
-      const variants = ctx?.getVariants();
-      this._lastSavedData = JSON.stringify({ values, variants });
+      this._lastSavedData = this._getContentSnapshot();
 
       this.observe(ctx.data, () => {
         if (this._status === 'saving') return;
-        const currentData = JSON.stringify({ values: ctx.getValues(), variants: ctx.getVariants() });
-        if (currentData !== this._lastSavedData) {
+        if (this._getContentSnapshot() !== this._lastSavedData) {
           this._status = 'dirty';
         }
       });
@@ -95,6 +98,22 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
     super.disconnectedCallback();
     window.removeEventListener("popstate", this._boundCheckAndLoadDraft);
     this._stopAutoSave();
+  }
+
+  /**
+   * Serializes only the content-bearing fields of the workspace data.
+   * Variant models carry volatile fields (updateDate, state, …) that the
+   * server changes on every save; including them makes saved content look
+   * "changed" and recreates a draft of identical content.
+   */
+  private _getContentSnapshot(): string {
+    const values = this._workspaceContext?.getValues() ?? [];
+    const variants = (this._workspaceContext?.getVariants() ?? []).map((v) => ({
+      name: v.name,
+      culture: v.culture ?? null,
+      segment: v.segment ?? null,
+    }));
+    return JSON.stringify({ values, variants });
   }
 
   private _startAutoSave() {
@@ -210,7 +229,10 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
           }
         }
 
-        this._lastSavedData = draft.contentData;
+        // Snapshot the workspace after applying rather than trusting the
+        // stored contentData: with partial selection (or drafts stored in an
+        // older format) they differ, which would flag clean content as dirty.
+        this._lastSavedData = this._getContentSnapshot();
         this._lastSavedTime = new Date(draft.savedAt).toLocaleTimeString();
         this._status = "saved";
 
@@ -300,9 +322,7 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
       const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
       // Get the current property values from the workspace context
-      const values = this._workspaceContext.getValues();
-      const variants = this._workspaceContext.getVariants();
-      const currentData = JSON.stringify({ values, variants });
+      const currentData = this._getContentSnapshot();
 
       // Only save if data has changed
       if (currentData === this._lastSavedData) {
@@ -327,6 +347,7 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
       }
 
       this._status = "saving";
+      const generation = this._saveGeneration;
       const response = await fetch("/umbraco/drafts/api/v1/drafts", {
         method: "POST",
         credentials: "include",
@@ -341,6 +362,19 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
       });
 
       if (response.ok) {
+        if (generation !== this._saveGeneration) {
+          // The document was saved while this POST was in flight, so we just
+          // recreated a draft of content that is already saved — remove it.
+          await fetch(`/umbraco/drafts/api/v1/drafts/${this._nodeKey}`, {
+            method: "DELETE",
+            credentials: "include",
+            headers: authHeaders,
+          });
+          this._status = "idle";
+          window.dispatchEvent(new CustomEvent("drafts-updated"));
+          return;
+        }
+
         this._lastSavedData = currentData;
         this._status = "saved";
         this._lastSavedTime = new Date().toLocaleTimeString();
