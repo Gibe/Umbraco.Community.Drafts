@@ -22,6 +22,8 @@ export interface DraftDiffModalData {
 
 export interface DraftDiffModalValue {
   action: "load" | "discard";
+  /** Identity keys (see draft-row-key.ts) of the rows the user chose to apply. Only set when action is "load". */
+  selectedKeys?: string[];
 }
 
 export const DRAFT_DIFF_MODAL_TOKEN = new UmbModalToken<

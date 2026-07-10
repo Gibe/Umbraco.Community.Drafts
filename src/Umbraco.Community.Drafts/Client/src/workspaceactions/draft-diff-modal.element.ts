@@ -1,6 +1,7 @@
 import {
   html,
   css,
+  nothing,
   customElement,
   property,
   state,
@@ -8,7 +9,7 @@ import {
 } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UMB_AUTH_CONTEXT, type UmbAuthContext } from "@umbraco-cms/backoffice/auth";
-import type { DraftDiffModalData } from "./draft-diff-modal.token.js";
+import { buildDiffRows, extractMediaKeys } from "./draft-diff.js";
 
 type DiffToken = { text: string; type: "same" | "added" | "removed" };
 
@@ -25,6 +26,9 @@ export class DraftsDiffModalElement extends UmbLitElement {
   @state()
   private _hideUnchanged = false;
 
+  @state()
+  private _selectedKeys = new Set<string>();
+
   #authContext: UmbAuthContext | undefined;
 
   constructor() {
@@ -39,6 +43,12 @@ export class DraftsDiffModalElement extends UmbLitElement {
     if (changedProperties.has('modalContext')) {
       this.#loadMediaUrls();
       this._hideUnchanged = false;
+      // Default to all draft changes selected
+      this._selectedKeys = new Set(
+        this.#getDiff()
+          .filter((row) => row.changed)
+          .map((row) => row.key)
+      );
     }
   }
 
@@ -46,14 +56,23 @@ export class DraftsDiffModalElement extends UmbLitElement {
     this._hideUnchanged = !this._hideUnchanged;
   }
 
-  #extractMediaKeys(value: unknown): string[] {
-    if (!value) return [];
-    if (Array.isArray(value)) return value.flatMap((v) => this.#extractMediaKeys(v));
-    if (typeof value === 'object' && value !== null) {
-      const key = (value as any).mediaKey;
-      if (typeof key === 'string') return [key];
-    }
-    return [];
+  #toggleRowSelected(key: string, checked: boolean) {
+    const next = new Set(this._selectedKeys);
+    if (checked) next.add(key);
+    else next.delete(key);
+    this._selectedKeys = next;
+  }
+
+  #selectAll() {
+    this._selectedKeys = new Set(
+      this.#getDiff()
+        .filter((row) => row.changed)
+        .map((row) => row.key)
+    );
+  }
+
+  #selectNone() {
+    this._selectedKeys = new Set();
   }
 
   async #loadMediaUrls() {
@@ -65,7 +84,7 @@ export class DraftsDiffModalElement extends UmbLitElement {
     ];
     const keys = new Set<string>();
     for (const val of allValues) {
-      for (const key of this.#extractMediaKeys(val)) keys.add(key);
+      for (const key of extractMediaKeys(val)) keys.add(key);
     }
     await Promise.all(
       [...keys].filter((k) => !this._mediaUrls.has(k)).map(async (key) => {
@@ -94,94 +113,18 @@ export class DraftsDiffModalElement extends UmbLitElement {
   }
 
   #handleLoad() {
-    this.modalContext?.updateValue({ action: "load" });
+    // Unchanged rows have nothing to choose between, so they're always applied;
+    // changed rows are applied only if the user left them checked.
+    const selectedKeys = this.#getDiff()
+      .filter((row) => !row.changed || this._selectedKeys.has(row.key))
+      .map((row) => row.key);
+    this.modalContext?.updateValue({ action: "load", selectedKeys });
     this.modalContext?.submit();
   }
 
   #handleDiscard() {
     this.modalContext?.updateValue({ action: "discard" });
     this.modalContext?.submit();
-  }
-
-  /** Converts a property alias to a human-friendly label */
-  #formatAlias(alias: string): string {
-    return alias
-      .replace(/[-_]/g, ' ')                      // kebab-case / snake_case → spaces
-      .replace(/([a-z])([A-Z])/g, '$1 $2')        // camelCase → words
-      .replace(/\b\w/g, (c) => c.toUpperCase())   // title-case each word
-      .trim();
-  }
-
-  /** Converts a raw property value to a human-readable string */
-  #formatValueFriendly(value: unknown): string {
-    if (value === null || value === undefined) return "(empty)";
-
-    if (typeof value === "boolean") return value ? "Yes" : "No";
-    if (typeof value === "number") return String(value);
-
-    if (typeof value === "string") {
-      if (!value) return "(empty)";
-      // Strip HTML tags (e.g. simple richtext stored as string)
-      const stripped = value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-      return stripped || "(empty)";
-    }
-
-    if (Array.isArray(value)) {
-      if (value.length === 0) return "(empty)";
-      // Media picker array
-      if (value[0]?.mediaKey !== undefined)
-        return value.map((v: any) => v.mediaKey ?? "(unknown)").join("\n");
-      // Content picker array
-      if (value[0]?.contentKey !== undefined)
-        return value.map((v: any) => v.contentKey ?? "(unknown)").join("\n");
-      // Generic – recurse per item
-      return value.map((v) => this.#formatValueFriendly(v)).join("\n");
-    }
-
-    if (typeof value === "object" && value !== null) {
-      const obj = value as Record<string, unknown>;
-
-      // Richtext stored as object with markup field
-      if (typeof obj["markup"] === "string") {
-        const stripped = obj["markup"].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-        return stripped || "(empty)";
-      }
-      // Block editor (contentData array) — format each block's inner property
-      // values so edits inside a block (not just adding/removing blocks) are detected
-      if (Array.isArray(obj["contentData"])) {
-        const contentData = obj["contentData"] as Record<string, unknown>[];
-        const settingsData = Array.isArray(obj["settingsData"])
-          ? (obj["settingsData"] as Record<string, unknown>[])
-          : [];
-        if (contentData.length === 0) return "(empty)";
-
-        const formatBlockItem = (item: Record<string, unknown>): string => {
-          const props = Object.entries(item)
-            .filter(([k]) => k !== "key" && k !== "contentTypeKey" && k !== "udi")
-            .map(([k, v]) => `${this.#formatAlias(k)}: ${this.#formatValueFriendly(v)}`);
-          return props.length ? props.join("; ") : "(no properties)";
-        };
-
-        const blocks = contentData.map(
-          (item, i) => `Block ${i + 1}: ${formatBlockItem(item)}`
-        );
-        if (settingsData.length > 0) {
-          blocks.push(
-            ...settingsData.map(
-              (item, i) => `Settings ${i + 1}: ${formatBlockItem(item)}`
-            )
-          );
-        }
-        return blocks.join("\n");
-      }
-      // Single media / content picker
-      if (typeof obj["mediaKey"] === "string") return obj["mediaKey"];
-      if (typeof obj["contentKey"] === "string") return obj["contentKey"];
-      // Fallback: compact JSON
-      return JSON.stringify(value, null, 2);
-    }
-
-    return String(value);
   }
 
   /** Word-level LCS diff. Falls back to whole-string if too large. */
@@ -257,72 +200,59 @@ export class DraftsDiffModalElement extends UmbLitElement {
   }
 
   #getDiff() {
-    const current: DraftDiffModalData["currentContent"] =
-      this.modalContext?.data?.currentContent;
-    const draft: DraftDiffModalData["draftContent"] =
-      this.modalContext?.data?.draftContent;
-
-    const variantRows = (current?.variants ?? []).map((cv, i) => {
-      const dv = draft?.variants?.[i];
-      const currentStr = cv.name || "(empty)";
-      const draftStr = dv?.name || "(empty)";
-      const changed = currentStr !== draftStr;
-      return { alias: "Name", currentStr, draftStr, changed, currentMediaKeys: [] as string[], draftMediaKeys: [] as string[] };
-    });
-
-    const allAliases = new Set([
-      ...(current?.values ?? []).map((v) => v.alias),
-      ...(draft?.values ?? []).map((v) => v.alias),
-    ]);
-
-    const propertyRows = Array.from(allAliases).map((alias) => {
-      const currentVal = current?.values?.find((v) => v.alias === alias);
-      const draftVal = draft?.values?.find((v) => v.alias === alias);
-      const currentStr = this.#formatValueFriendly(currentVal?.value);
-      const draftStr = this.#formatValueFriendly(draftVal?.value);
-      const changed = currentStr !== draftStr;
-      return {
-        alias: this.#formatAlias(alias),
-        currentStr,
-        draftStr,
-        changed,
-        currentMediaKeys: this.#extractMediaKeys(currentVal?.value),
-        draftMediaKeys: this.#extractMediaKeys(draftVal?.value),
-      };
-    });
-
-    return [...variantRows, ...propertyRows];
+    return buildDiffRows(
+      this.modalContext?.data?.currentContent,
+      this.modalContext?.data?.draftContent
+    );
   }
 
   render() {
     const rawSavedAt: string = this.modalContext?.data?.savedAt ?? "";
     const savedAt = rawSavedAt ? new Date(rawSavedAt).toLocaleString() : '';
     const rows = this.#getDiff();
-    const hasChanges = rows.some((r) => r.changed);
-    const visibleRows = this._hideUnchanged ? rows.filter((r) => r.changed) : rows;
+    const changedRows = rows.filter((r) => r.changed);
+    const hasChanges = changedRows.length > 0;
+    const visibleRows = this._hideUnchanged ? changedRows : rows;
+    const selectedCount = changedRows.filter((r) => this._selectedKeys.has(r.key)).length;
+    const loadButtonLabel =
+      hasChanges && selectedCount < changedRows.length
+        ? `Load selected draft change${selectedCount > 1 ? "s" : ""} (${selectedCount})`
+        : "Load draft";
 
     return html`
       <umb-body-layout headline="Unsaved draft found">
         <p>
           A draft was saved on <strong>${savedAt}</strong>. Review the changes
-          below, then choose to load or discard it.
+          below, choose which ones to apply, then load or discard the draft.
         </p>
 
         ${!hasChanges
           ? html`<p class="no-changes">No differences detected between the draft and current content.</p>`
           : html`<div class="diff-toolbar">
-              <uui-button
-                look="secondary"
-                compact
-                @click=${this.#toggleHideUnchanged}
-                label=${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
-              >
-                ${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
-              </uui-button>
+              <div class="diff-toolbar-group">
+                <span class="diff-selection-count">${selectedCount} of ${changedRows.length} changes selected</span>
+                <uui-button look="primary" compact @click=${this.#selectAll} label="Select all">
+                  Select all
+                </uui-button>
+                <uui-button look="secondary" compact @click=${this.#selectNone} label="Select none">
+                  Select none
+                </uui-button>
+              </div>
+              <div class="diff-toolbar-group">
+                <uui-button
+                  look="secondary"
+                  compact
+                  @click=${this.#toggleHideUnchanged}
+                  label=${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
+                >
+                  ${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
+                </uui-button>
+              </div>
             </div>`}
 
         <div class="diff-table">
           <div class="diff-header">
+            <div class="diff-col-select"></div>
             <div class="diff-col-label"></div>
             <div class="diff-col">Current content</div>
             <div class="diff-col">
@@ -334,8 +264,19 @@ export class DraftsDiffModalElement extends UmbLitElement {
             const tokens = row.changed
               ? this.#computeInlineDiff(row.currentStr, row.draftStr)
               : null;
+            const selected = !row.changed || this._selectedKeys.has(row.key);
             return html`
               <div class="diff-row ${row.changed ? "changed" : "unchanged"}">
+                <div class="diff-col-select">
+                  ${row.changed
+                    ? html`<uui-checkbox
+                        aria-label=${`Apply change to ${row.alias}`}
+                        ?checked=${selected}
+                        @change=${(e: Event) =>
+                          this.#toggleRowSelected(row.key, (e.target as HTMLInputElement).checked)}
+                      ></uui-checkbox>`
+                    : nothing}
+                </div>
                 <div class="diff-col-label">${row.alias}</div>
                 <div class="diff-col diff-current">
                   ${row.currentMediaKeys.length > 0
@@ -364,14 +305,16 @@ export class DraftsDiffModalElement extends UmbLitElement {
           >
             Discard draft
           </uui-button>
-          <uui-button
-            @click=${this.#handleLoad}
-            look="primary"
-            color="positive"
-            label="Load draft"
-          >
-            Load draft
-          </uui-button>
+          ${hasChanges && selectedCount === 0
+            ? nothing
+            : html`<uui-button
+                @click=${this.#handleLoad}
+                look="primary"
+                color="positive"
+                label=${loadButtonLabel}
+              >
+                ${loadButtonLabel}
+              </uui-button>`}
         </div>
       </umb-body-layout>
     `;
@@ -390,8 +333,21 @@ export class DraftsDiffModalElement extends UmbLitElement {
 
       .diff-toolbar {
         display: flex;
-        justify-content: flex-end;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--uui-size-3);
         margin-bottom: var(--uui-size-3);
+      }
+
+      .diff-toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: var(--uui-size-3);
+      }
+
+      .diff-selection-count {
+        font-size: 12px;
+        color: var(--uui-color-text-alt);
       }
 
       .diff-table {
@@ -408,9 +364,17 @@ export class DraftsDiffModalElement extends UmbLitElement {
       .diff-header,
       .diff-row {
         display: grid;
-        grid-template-columns: 140px 1fr 1fr;
+        grid-template-columns: 36px 140px 1fr 1fr;
         gap: 1px;
         background: var(--uui-color-divider);
+      }
+
+      .diff-col-select {
+        background: var(--uui-color-surface-alt);
+        padding: var(--uui-size-3) 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
       }
 
       .diff-header > div {
