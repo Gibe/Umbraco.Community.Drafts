@@ -11,7 +11,8 @@ import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { UmbVariantId } from "@umbraco-cms/backoffice/variant";
 import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
-import { DRAFT_DIFF_MODAL_TOKEN } from "./draft-diff-modal.token.js";
+import { DRAFT_DIFF_MODAL_TOKEN, type DraftDiffModalData, type DraftDiffModalValue } from "./draft-diff-modal.token.js";
+import { buildValueKey, buildVariantKey } from "./draft-row-key.js";
 
 @customElement("drafts-auto-save-action")
 export default class DraftsAutoSaveElement extends UmbLitElement {
@@ -56,9 +57,7 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
         if (!this._isPersistedDataLoaded) {
           if (data === undefined) return; // Workspace not loaded yet — wait
           this._isPersistedDataLoaded = true;
-          // Defer until the next task so Umbraco's workspace context is
-          // fully settled before we try to open the modal.
-          setTimeout(() => this._checkAndLoadDraft(), 500);
+          this._checkAndLoadDraft();
           return;
         }
         // Document was saved — remove draft from sidebar immediately
@@ -139,43 +138,49 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
 
         const data = JSON.parse(draft.contentData);
 
+        // Which rows the user chose to apply. Undefined means "apply everything"
+        // (force-loaded via ?draft=true, where no diff modal is shown).
+        let selectedKeys: Set<string> | undefined;
+
         // If not force loading, ask the user
         if (!forceLoad) {
           const currentValues = this._workspaceContext?.getValues() ?? [];
           const currentVariants = this._workspaceContext?.getVariants() ?? [];
 
-          try {
-            const handler = this._modalManagerContext?.open(this, DRAFT_DIFF_MODAL_TOKEN, {
-              data: {
-                savedAt: draft.savedAt,
-                currentContent: { values: currentValues as any, variants: currentVariants as any },
-                draftContent: data,
-              },
+          const result = await this._openDiffModal({
+            savedAt: draft.savedAt,
+            currentContent: { values: currentValues as any, variants: currentVariants as any },
+            draftContent: data,
+          });
+
+          // User dismissed the modal without choosing - leave draft intact
+          if (result === undefined) return;
+
+          if (result.action === "discard") {
+            await fetch(`/umbraco/drafts/api/v1/drafts/${this._nodeKey}`, {
+              method: "DELETE",
+              credentials: "include",
+              headers,
             });
-            const result = await handler?.onSubmit();
 
-            if (result?.action === "discard") {
-              await fetch(`/umbraco/drafts/api/v1/drafts/${this._nodeKey}`, {
-                method: "DELETE",
-                credentials: "include",
-                headers,
-              });
+            this._notificationContext?.peek("positive", {
+              data: { headline: "Draft discarded", message: "" },
+            });
 
-              this._notificationContext?.peek("positive", {
-                data: { headline: "Draft discarded", message: "" },
-              });
-
-              window.dispatchEvent(new CustomEvent("drafts-updated"));
-              return;
-            }
-          } catch {
-            // User dismissed the modal without choosing - leave draft intact
+            window.dispatchEvent(new CustomEvent("drafts-updated"));
             return;
           }
+
+          selectedKeys = new Set(result.selectedKeys ?? []);
         }
 
         if (data.values) {
           for (const item of data.values) {
+            if (
+              selectedKeys &&
+              !selectedKeys.has(buildValueKey(item.alias, item.culture ?? null, item.segment ?? null))
+            )
+              continue;
             const variantId = UmbVariantId.Create(item);
             await this._workspaceContext.setPropertyValue(item.alias, item.value, variantId);
           }
@@ -183,6 +188,8 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
 
         if (data.variants) {
           for (const variant of data.variants) {
+            if (selectedKeys && !selectedKeys.has(buildVariantKey(variant.culture ?? null, variant.segment ?? null)))
+              continue;
             const variantId = UmbVariantId.Create(variant);
             this._workspaceContext.setName(variant.name, variantId);
           }
@@ -202,6 +209,72 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
     } catch (e) {
       console.error("Failed to load draft", e);
     }
+  }
+
+  /**
+   * Resolves once the backoffice router has gone quiet: no router-slot
+   * navigation events for `quietMs` in a row (capped at `maxWaitMs`).
+   * Umbraco's modal manager force-closes every non-routable modal on each
+   * `navigationsuccess` event, and the document workspace keeps navigating
+   * (variant redirect, tab/view mounting) for a while after its data loads,
+   * so a fixed delay before opening the modal is a race.
+   */
+  private _waitForRouterIdle(quietMs = 500, maxWaitMs = 10000): Promise<void> {
+    return new Promise((resolve) => {
+      const events = [
+        "willchangestate",
+        "changestate",
+        "navigationstart",
+        "navigationsuccess",
+        "navigationcancel",
+        "navigationend",
+      ];
+      let quietTimer = 0;
+      const done = () => {
+        events.forEach((e) => window.removeEventListener(e, onNavigation));
+        clearTimeout(quietTimer);
+        clearTimeout(maxTimer);
+        resolve();
+      };
+      const onNavigation = () => {
+        clearTimeout(quietTimer);
+        quietTimer = window.setTimeout(done, quietMs);
+      };
+      const maxTimer = window.setTimeout(done, maxWaitMs);
+      events.forEach((e) => window.addEventListener(e, onNavigation));
+      quietTimer = window.setTimeout(done, quietMs);
+    });
+  }
+
+  /**
+   * Opens the diff modal once the router is idle. If a late navigation still
+   * force-closes it (the sidebar blocks user-initiated navigation, so a
+   * rejection paired with a navigationsuccess can only be an auto-close),
+   * waits for the router to settle again and reopens it.
+   * Returns undefined when the user dismissed the modal without choosing.
+   */
+  private async _openDiffModal(data: DraftDiffModalData): Promise<DraftDiffModalValue | undefined> {
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await this._waitForRouterIdle();
+      if (!this.isConnected) return undefined;
+
+      let closedByNavigation = false;
+      const onNavigation = () => {
+        closedByNavigation = true;
+      };
+      window.addEventListener("navigationsuccess", onNavigation);
+      try {
+        const handler = this._modalManagerContext?.open(this, DRAFT_DIFF_MODAL_TOKEN, { data });
+        return await handler?.onSubmit();
+      } catch {
+        if (!closedByNavigation) return undefined; // Genuine user dismissal
+        // The router auto-closed the modal — settle and reopen
+      } finally {
+        window.removeEventListener("navigationsuccess", onNavigation);
+      }
+    }
+    return undefined;
   }
 
   private async _performAutoSave() {

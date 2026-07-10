@@ -1,6 +1,7 @@
 import {
   html,
   css,
+  nothing,
   customElement,
   property,
   state,
@@ -9,6 +10,7 @@ import {
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UMB_AUTH_CONTEXT, type UmbAuthContext } from "@umbraco-cms/backoffice/auth";
 import type { DraftDiffModalData } from "./draft-diff-modal.token.js";
+import { buildValueKey, buildVariantKey } from "./draft-row-key.js";
 
 type DiffToken = { text: string; type: "same" | "added" | "removed" };
 
@@ -25,6 +27,9 @@ export class DraftsDiffModalElement extends UmbLitElement {
   @state()
   private _hideUnchanged = false;
 
+  @state()
+  private _selectedKeys = new Set<string>();
+
   #authContext: UmbAuthContext | undefined;
 
   constructor() {
@@ -39,11 +44,36 @@ export class DraftsDiffModalElement extends UmbLitElement {
     if (changedProperties.has('modalContext')) {
       this.#loadMediaUrls();
       this._hideUnchanged = false;
+      // Default to all draft changes selected
+      this._selectedKeys = new Set(
+        this.#getDiff()
+          .filter((row) => row.changed)
+          .map((row) => row.key)
+      );
     }
   }
 
   #toggleHideUnchanged() {
     this._hideUnchanged = !this._hideUnchanged;
+  }
+
+  #toggleRowSelected(key: string, checked: boolean) {
+    const next = new Set(this._selectedKeys);
+    if (checked) next.add(key);
+    else next.delete(key);
+    this._selectedKeys = next;
+  }
+
+  #selectAll() {
+    this._selectedKeys = new Set(
+      this.#getDiff()
+        .filter((row) => row.changed)
+        .map((row) => row.key)
+    );
+  }
+
+  #selectNone() {
+    this._selectedKeys = new Set();
   }
 
   #extractMediaKeys(value: unknown): string[] {
@@ -94,7 +124,12 @@ export class DraftsDiffModalElement extends UmbLitElement {
   }
 
   #handleLoad() {
-    this.modalContext?.updateValue({ action: "load" });
+    // Unchanged rows have nothing to choose between, so they're always applied;
+    // changed rows are applied only if the user left them checked.
+    const selectedKeys = this.#getDiff()
+      .filter((row) => !row.changed || this._selectedKeys.has(row.key))
+      .map((row) => row.key);
+    this.modalContext?.updateValue({ action: "load", selectedKeys });
     this.modalContext?.submit();
   }
 
@@ -267,7 +302,15 @@ export class DraftsDiffModalElement extends UmbLitElement {
       const currentStr = cv.name || "(empty)";
       const draftStr = dv?.name || "(empty)";
       const changed = currentStr !== draftStr;
-      return { alias: "Name", currentStr, draftStr, changed, currentMediaKeys: [] as string[], draftMediaKeys: [] as string[] };
+      return {
+        key: buildVariantKey(cv.culture ?? null, cv.segment ?? null),
+        alias: "Name",
+        currentStr,
+        draftStr,
+        changed,
+        currentMediaKeys: [] as string[],
+        draftMediaKeys: [] as string[],
+      };
     });
 
     const allAliases = new Set([
@@ -281,7 +324,10 @@ export class DraftsDiffModalElement extends UmbLitElement {
       const currentStr = this.#formatValueFriendly(currentVal?.value);
       const draftStr = this.#formatValueFriendly(draftVal?.value);
       const changed = currentStr !== draftStr;
+      const culture = currentVal?.culture ?? draftVal?.culture ?? null;
+      const segment = currentVal?.segment ?? draftVal?.segment ?? null;
       return {
+        key: buildValueKey(alias, culture, segment),
         alias: this.#formatAlias(alias),
         currentStr,
         draftStr,
@@ -298,31 +344,49 @@ export class DraftsDiffModalElement extends UmbLitElement {
     const rawSavedAt: string = this.modalContext?.data?.savedAt ?? "";
     const savedAt = rawSavedAt ? new Date(rawSavedAt).toLocaleString() : '';
     const rows = this.#getDiff();
-    const hasChanges = rows.some((r) => r.changed);
-    const visibleRows = this._hideUnchanged ? rows.filter((r) => r.changed) : rows;
+    const changedRows = rows.filter((r) => r.changed);
+    const hasChanges = changedRows.length > 0;
+    const visibleRows = this._hideUnchanged ? changedRows : rows;
+    const selectedCount = changedRows.filter((r) => this._selectedKeys.has(r.key)).length;
+    const loadButtonLabel =
+      hasChanges && selectedCount < changedRows.length
+        ? `Load selected draft change${selectedCount > 1 ? "s" : ""} (${selectedCount})`
+        : "Load draft";
 
     return html`
       <umb-body-layout headline="Unsaved draft found">
         <p>
           A draft was saved on <strong>${savedAt}</strong>. Review the changes
-          below, then choose to load or discard it.
+          below, choose which ones to apply, then load or discard the draft.
         </p>
 
         ${!hasChanges
           ? html`<p class="no-changes">No differences detected between the draft and current content.</p>`
           : html`<div class="diff-toolbar">
-              <uui-button
-                look="secondary"
-                compact
-                @click=${this.#toggleHideUnchanged}
-                label=${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
-              >
-                ${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
-              </uui-button>
+              <div class="diff-toolbar-group">
+                <span class="diff-selection-count">${selectedCount} of ${changedRows.length} changes selected</span>
+                <uui-button look="primary" compact @click=${this.#selectAll} label="Select all">
+                  Select all
+                </uui-button>
+                <uui-button look="secondary" compact @click=${this.#selectNone} label="Select none">
+                  Select none
+                </uui-button>
+              </div>
+              <div class="diff-toolbar-group">
+                <uui-button
+                  look="secondary"
+                  compact
+                  @click=${this.#toggleHideUnchanged}
+                  label=${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
+                >
+                  ${this._hideUnchanged ? "Show unchanged fields" : "Hide unchanged fields"}
+                </uui-button>
+              </div>
             </div>`}
 
         <div class="diff-table">
           <div class="diff-header">
+            <div class="diff-col-select"></div>
             <div class="diff-col-label"></div>
             <div class="diff-col">Current content</div>
             <div class="diff-col">
@@ -334,8 +398,19 @@ export class DraftsDiffModalElement extends UmbLitElement {
             const tokens = row.changed
               ? this.#computeInlineDiff(row.currentStr, row.draftStr)
               : null;
+            const selected = !row.changed || this._selectedKeys.has(row.key);
             return html`
               <div class="diff-row ${row.changed ? "changed" : "unchanged"}">
+                <div class="diff-col-select">
+                  ${row.changed
+                    ? html`<uui-checkbox
+                        aria-label=${`Apply change to ${row.alias}`}
+                        ?checked=${selected}
+                        @change=${(e: Event) =>
+                          this.#toggleRowSelected(row.key, (e.target as HTMLInputElement).checked)}
+                      ></uui-checkbox>`
+                    : nothing}
+                </div>
                 <div class="diff-col-label">${row.alias}</div>
                 <div class="diff-col diff-current">
                   ${row.currentMediaKeys.length > 0
@@ -364,14 +439,16 @@ export class DraftsDiffModalElement extends UmbLitElement {
           >
             Discard draft
           </uui-button>
-          <uui-button
-            @click=${this.#handleLoad}
-            look="primary"
-            color="positive"
-            label="Load draft"
-          >
-            Load draft
-          </uui-button>
+          ${hasChanges && selectedCount === 0
+            ? nothing
+            : html`<uui-button
+                @click=${this.#handleLoad}
+                look="primary"
+                color="positive"
+                label=${loadButtonLabel}
+              >
+                ${loadButtonLabel}
+              </uui-button>`}
         </div>
       </umb-body-layout>
     `;
@@ -390,8 +467,21 @@ export class DraftsDiffModalElement extends UmbLitElement {
 
       .diff-toolbar {
         display: flex;
-        justify-content: flex-end;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--uui-size-3);
         margin-bottom: var(--uui-size-3);
+      }
+
+      .diff-toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: var(--uui-size-3);
+      }
+
+      .diff-selection-count {
+        font-size: 12px;
+        color: var(--uui-color-text-alt);
       }
 
       .diff-table {
@@ -408,9 +498,17 @@ export class DraftsDiffModalElement extends UmbLitElement {
       .diff-header,
       .diff-row {
         display: grid;
-        grid-template-columns: 140px 1fr 1fr;
+        grid-template-columns: 36px 140px 1fr 1fr;
         gap: 1px;
         background: var(--uui-color-divider);
+      }
+
+      .diff-col-select {
+        background: var(--uui-color-surface-alt);
+        padding: var(--uui-size-3) 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
       }
 
       .diff-header > div {
