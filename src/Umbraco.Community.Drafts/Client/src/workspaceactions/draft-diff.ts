@@ -102,50 +102,84 @@ export function formatValueFriendly(value: unknown): string {
   return String(value);
 }
 
+/** Appends the culture/segment to a row label so variant rows are distinguishable. */
+function withVariantSuffix(label: string, culture: string | null, segment: string | null): string {
+  const parts = [culture, segment].filter((p): p is string => !!p);
+  return parts.length ? `${label} (${parts.join(", ")})` : label;
+}
+
 /** Builds the per-row comparison between current content and a draft. */
 export function buildDiffRows(
   current: DraftContent | undefined,
   draft: DraftContent | undefined
 ): DraftDiffRow[] {
-  const variantRows = (current?.variants ?? []).map((cv, i) => {
-    const dv = draft?.variants?.[i];
-    const currentStr = cv.name || "(empty)";
-    const draftStr = dv?.name || "(empty)";
-    const changed = currentStr !== draftStr;
-    return {
-      key: buildVariantKey(cv.culture ?? null, cv.segment ?? null),
-      alias: "Name",
+  // Pair variants by culture/segment rather than array index, and include
+  // variants that exist on only one side — the apply step in
+  // auto-save.element.ts matches on the same key, so every appliable name
+  // change must get a row here or partial selection would silently skip it.
+  const findVariant = (
+    variants: DraftContent["variants"] | undefined,
+    culture: string | null,
+    segment: string | null
+  ) =>
+    variants?.find(
+      (v) => (v.culture ?? null) === culture && (v.segment ?? null) === segment
+    );
+
+  const variantRows = new Map<string, DraftDiffRow>();
+  for (const v of [...(current?.variants ?? []), ...(draft?.variants ?? [])]) {
+    const culture = v.culture ?? null;
+    const segment = v.segment ?? null;
+    const key = buildVariantKey(culture, segment);
+    if (variantRows.has(key)) continue;
+    const currentStr = findVariant(current?.variants, culture, segment)?.name || "(empty)";
+    const draftStr = findVariant(draft?.variants, culture, segment)?.name || "(empty)";
+    variantRows.set(key, {
+      key,
+      alias: withVariantSuffix("Name", culture, segment),
       currentStr,
       draftStr,
-      changed,
-      currentMediaKeys: [] as string[],
-      draftMediaKeys: [] as string[],
-    };
-  });
+      changed: currentStr !== draftStr,
+      currentMediaKeys: [],
+      draftMediaKeys: [],
+    });
+  }
 
-  const allAliases = new Set([
-    ...(current?.values ?? []).map((v) => v.alias),
-    ...(draft?.values ?? []).map((v) => v.alias),
-  ]);
+  // Values are variant-aware, so the same alias can legitimately appear once
+  // per culture/segment — one row per (alias, culture, segment), not per alias.
+  const findValue = (
+    values: DraftContent["values"] | undefined,
+    alias: string,
+    culture: string | null,
+    segment: string | null
+  ) =>
+    values?.find(
+      (v) =>
+        v.alias === alias &&
+        (v.culture ?? null) === culture &&
+        (v.segment ?? null) === segment
+    );
 
-  const propertyRows = Array.from(allAliases).map((alias) => {
-    const currentVal = current?.values?.find((v) => v.alias === alias);
-    const draftVal = draft?.values?.find((v) => v.alias === alias);
+  const propertyRows = new Map<string, DraftDiffRow>();
+  for (const v of [...(current?.values ?? []), ...(draft?.values ?? [])]) {
+    const culture = v.culture ?? null;
+    const segment = v.segment ?? null;
+    const key = buildValueKey(v.alias, culture, segment);
+    if (propertyRows.has(key)) continue;
+    const currentVal = findValue(current?.values, v.alias, culture, segment);
+    const draftVal = findValue(draft?.values, v.alias, culture, segment);
     const currentStr = formatValueFriendly(currentVal?.value);
     const draftStr = formatValueFriendly(draftVal?.value);
-    const changed = currentStr !== draftStr;
-    const culture = currentVal?.culture ?? draftVal?.culture ?? null;
-    const segment = currentVal?.segment ?? draftVal?.segment ?? null;
-    return {
-      key: buildValueKey(alias, culture, segment),
-      alias: formatAlias(alias),
+    propertyRows.set(key, {
+      key,
+      alias: withVariantSuffix(formatAlias(v.alias), culture, segment),
       currentStr,
       draftStr,
-      changed,
+      changed: currentStr !== draftStr,
       currentMediaKeys: extractMediaKeys(currentVal?.value),
       draftMediaKeys: extractMediaKeys(draftVal?.value),
-    };
-  });
+    });
+  }
 
-  return [...variantRows, ...propertyRows];
+  return [...variantRows.values(), ...propertyRows.values()];
 }
