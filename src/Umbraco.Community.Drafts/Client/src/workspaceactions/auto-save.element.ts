@@ -13,7 +13,7 @@ import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { DRAFT_DIFF_MODAL_TOKEN, type DraftDiffModalData, type DraftDiffModalValue } from "./draft-diff-modal.token.js";
 import { buildValueKey, buildVariantKey } from "./draft-row-key.js";
-import { buildDiffRows, mergeBlockListValue, type DraftDiffRow } from "./draft-diff.js";
+import { buildDiffRows, mergeBlockEditorValue, type DraftDiffRow } from "./draft-diff.js";
 
 @customElement("drafts-auto-save-action")
 export default class DraftsAutoSaveElement extends UmbLitElement {
@@ -219,7 +219,8 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
             if (selectedKeys) {
               const blocks = rowByKey.get(valueKey)?.blocks;
               if (blocks) {
-                // Block-list property: selection is per block, not per row
+                // Block-editor property: selection is per block (at any
+                // nesting depth), not per row
                 const changedBlocks = blocks.filter((b) => b.status !== "unchanged");
                 const chosen = changedBlocks.filter((b) => selectedKeys.has(b.key));
                 if (chosen.length === 0) continue;
@@ -230,11 +231,11 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
                       (v.culture ?? null) === (item.culture ?? null) &&
                       (v.segment ?? null) === (item.segment ?? null)
                   );
-                  value = mergeBlockListValue(
+                  value = mergeBlockEditorValue(
                     currentVal?.value,
                     item.value,
-                    new Set(chosen.map((b) => b.blockId).filter((id): id is string => !!id)),
-                    chosen.some((b) => b.isOrder)
+                    selectedKeys,
+                    valueKey
                   );
                 }
               } else if (!selectedKeys.has(valueKey)) {

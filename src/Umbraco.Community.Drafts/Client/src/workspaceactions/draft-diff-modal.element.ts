@@ -310,7 +310,10 @@ export class DraftsDiffModalElement extends UmbLitElement {
           ? this.#renderDraftSide(tokens)
           : html`<div class="diff-content">${block.draftStr}</div>`;
     return html`
-      <div class="diff-row block-row ${selectable ? "changed" : "unchanged"}">
+      <div
+        class="diff-row block-row ${selectable ? "changed" : "unchanged"}"
+        style="--block-depth: ${block.depth}"
+      >
         <div class="diff-col-select">
           ${selectable
             ? html`<uui-checkbox
@@ -343,8 +346,10 @@ export class DraftsDiffModalElement extends UmbLitElement {
     const selectedCount = changedBlocks.filter((b) => this._selectedKeys.has(b.key)).length;
     const visibleBlocks = this._hideUnchanged ? changedBlocks : blocks;
     const countText = (count: number) => `${count} block${count === 1 ? "" : "s"}`;
-    const currentCount = blocks.filter((b) => !b.isOrder && b.status !== "added").length;
-    const draftCount = blocks.filter((b) => !b.isOrder && b.status !== "removed").length;
+    // Only count top-level blocks — nested rows are details of their parents
+    const topBlocks = blocks.filter((b) => b.depth === 0 && !b.isOrder);
+    const currentCount = topBlocks.filter((b) => b.status !== "added").length;
+    const draftCount = topBlocks.filter((b) => b.status !== "removed").length;
     return html`
       <div class="diff-row changed block-parent">
         <div class="diff-col-select">
@@ -588,7 +593,7 @@ export class DraftsDiffModalElement extends UmbLitElement {
       }
 
       .block-row .diff-col-label {
-        padding-left: calc(var(--uui-size-4) + 14px);
+        padding-left: calc(var(--uui-size-4) + 14px + var(--block-depth, 0) * 16px);
         font-weight: 500;
         display: flex;
         flex-direction: column;
