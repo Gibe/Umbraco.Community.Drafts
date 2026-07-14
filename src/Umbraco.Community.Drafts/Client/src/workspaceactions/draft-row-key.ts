@@ -7,3 +7,8 @@ export function buildValueKey(alias: string, culture: string | null, segment: st
 export function buildVariantKey(culture: string | null, segment: string | null): string {
   return `variant:${culture ?? ""}:${segment ?? ""}`;
 }
+
+/** Builds a stable identity key for a single block within a block-list property row. */
+export function buildBlockRowKey(valueKey: string, blockId: string): string {
+  return `${valueKey}:block:${blockId}`;
+}
