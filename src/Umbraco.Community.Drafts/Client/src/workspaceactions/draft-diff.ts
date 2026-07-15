@@ -67,7 +67,7 @@ export function extractImageRefs(value: unknown, deep = false): ImageRef[] {
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
     if (typeof obj["mediaKey"] === "string") return [{ kind: "media", key: obj["mediaKey"] }];
-    if (typeof obj["src"] === "string" && isImageUrl(obj["src"]))
+    if (typeof obj["src"] === "string" && obj["src"].startsWith("/media/") && isImageUrl(obj["src"]))
       return [{ kind: "url", url: obj["src"] }];
     if (deep) {
       // Skip markup so <img> tags inside richtext HTML aren't misparsed
@@ -291,7 +291,10 @@ function pairedProps(
 
 /**
  * Whether a property value pair can be decomposed into per-block sub-rows:
- * at least one side is a block-editor value and neither side is something else.
+ * at least one side is a block-editor value, neither side is something else,
+ * and when both sides parse they're the same kind of block editor (a
+ * property's editor can change from block list to block grid or vice versa
+ * between the current and draft version, and those shapes aren't comparable).
  */
 function isDecomposable(currentValue: unknown, draftValue: unknown): boolean {
   const current = asBlockEditorValue(currentValue);
@@ -299,6 +302,7 @@ function isDecomposable(currentValue: unknown, draftValue: unknown): boolean {
   if (!current && !draft) return false;
   if (currentValue && !current) return false;
   if (draftValue && !draft) return false;
+  if (current && draft && current.layoutKey !== draft.layoutKey) return false;
   return true;
 }
 
