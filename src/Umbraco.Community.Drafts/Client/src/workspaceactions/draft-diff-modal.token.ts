@@ -22,7 +22,11 @@ export interface DraftDiffModalData {
 
 export interface DraftDiffModalValue {
   action: "load" | "discard";
-  /** Identity keys (see draft-row-key.ts) of the rows the user chose to apply. Only set when action is "load". */
+  /**
+   * Identity keys (see draft-row-key.ts) of the rows — or, for block-editor
+   * properties (block list / block grid), the individual blocks at any
+   * nesting depth — the user chose to apply. Only set when action is "load".
+   */
   selectedKeys?: string[];
 }
 

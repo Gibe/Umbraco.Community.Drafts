@@ -13,7 +13,7 @@ import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { DRAFT_DIFF_MODAL_TOKEN, type DraftDiffModalData, type DraftDiffModalValue } from "./draft-diff-modal.token.js";
 import { buildValueKey, buildVariantKey } from "./draft-row-key.js";
-import { buildDiffRows } from "./draft-diff.js";
+import { buildDiffRows, mergeBlockEditorValue, type DraftDiffRow } from "./draft-diff.js";
 
 @customElement("drafts-auto-save-action")
 export default class DraftsAutoSaveElement extends UmbLitElement {
@@ -161,16 +161,19 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
         // Which rows the user chose to apply. Undefined means "apply everything"
         // (force-loaded via ?draft=true, where no diff modal is shown).
         let selectedKeys: Set<string> | undefined;
+        let diffRows: DraftDiffRow[] = [];
+        let currentValues: Array<{ alias: string; value?: unknown; culture?: string | null; segment?: string | null }> = [];
 
         // If not force loading, ask the user
         if (!forceLoad) {
-          const currentValues = this._workspaceContext?.getValues() ?? [];
+          currentValues = this._workspaceContext?.getValues() ?? [];
           const currentVariants = this._workspaceContext?.getVariants() ?? [];
           const currentContent = { values: currentValues as any, variants: currentVariants as any };
 
           // If the draft is identical to the current content there is nothing
           // to review — delete it quietly instead of showing the modal.
-          const hasChanges = buildDiffRows(currentContent, data).some((row) => row.changed);
+          diffRows = buildDiffRows(currentContent, data);
+          const hasChanges = diffRows.some((row) => row.changed);
           if (!hasChanges) {
             await fetch(`/umbraco/drafts/api/v1/drafts/${this._nodeKey}`, {
               method: "DELETE",
@@ -209,14 +212,38 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
         }
 
         if (data.values) {
+          const rowByKey = new Map(diffRows.map((row) => [row.key, row]));
           for (const item of data.values) {
-            if (
-              selectedKeys &&
-              !selectedKeys.has(buildValueKey(item.alias, item.culture ?? null, item.segment ?? null))
-            )
-              continue;
+            const valueKey = buildValueKey(item.alias, item.culture ?? null, item.segment ?? null);
+            let value = item.value;
+            if (selectedKeys) {
+              const blocks = rowByKey.get(valueKey)?.blocks;
+              if (blocks) {
+                // Block-editor property: selection is per block (at any
+                // nesting depth), not per row
+                const changedBlocks = blocks.filter((b) => b.status !== "unchanged");
+                const chosen = changedBlocks.filter((b) => selectedKeys.has(b.key));
+                if (chosen.length === 0) continue;
+                if (chosen.length < changedBlocks.length) {
+                  const currentVal = currentValues.find(
+                    (v) =>
+                      v.alias === item.alias &&
+                      (v.culture ?? null) === (item.culture ?? null) &&
+                      (v.segment ?? null) === (item.segment ?? null)
+                  );
+                  value = mergeBlockEditorValue(
+                    currentVal?.value,
+                    item.value,
+                    selectedKeys,
+                    valueKey
+                  );
+                }
+              } else if (!selectedKeys.has(valueKey)) {
+                continue;
+              }
+            }
             const variantId = UmbVariantId.Create(item);
-            await this._workspaceContext.setPropertyValue(item.alias, item.value, variantId);
+            await this._workspaceContext.setPropertyValue(item.alias, value, variantId);
           }
         }
 
