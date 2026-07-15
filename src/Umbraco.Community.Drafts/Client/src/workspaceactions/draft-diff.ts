@@ -852,6 +852,86 @@ function withVariantSuffix(label: string, culture: string | null, segment: strin
   return parts.length ? `${label} (${parts.join(", ")})` : label;
 }
 
+/**
+ * Whether a block collection contains a block present on both sides whose
+ * property set differs — i.e. a property was added to or removed from the
+ * block's element type since the draft was saved. Recurses into grid areas
+ * and nested block-editor properties. Blocks that only exist on one side are
+ * ordinary adds/removes, not a structural change.
+ */
+function collectionHasStructuralChange(cur: CollectionSide, dr: CollectionSide): boolean {
+  for (const id of dr.order) {
+    if (!cur.order.includes(id)) continue;
+    const currentItem = contentOf(cur.root, id);
+    const draftItem = contentOf(dr.root, id);
+    if (!currentItem || !draftItem) continue;
+
+    const currentPropIds = new Set(
+      (Array.isArray(currentItem["values"]) ? (currentItem["values"] as BlockItem[]) : []).map(
+        propIdentity
+      )
+    );
+    const draftProps = Array.isArray(draftItem["values"])
+      ? (draftItem["values"] as BlockItem[])
+      : [];
+    if (draftProps.some((pv) => !currentPropIds.has(propIdentity(pv)))) return true;
+
+    const currentEntry = cur.entryOf(id);
+    const draftEntry = dr.entryOf(id);
+    const currentAreas = entryAreas(currentEntry);
+    for (const a of entryAreas(draftEntry)) {
+      const curItems = currentAreas.find((x) => x.key === a.key)?.items ?? [];
+      if (collectionHasStructuralChange(areaSide(cur.root, curItems), areaSide(dr.root, a.items)))
+        return true;
+    }
+
+    for (const p of pairedProps(currentItem, draftItem)) {
+      const curVal = p.current?.["value"];
+      const draftVal = p.draft?.["value"];
+      if (!isDecomposable(curVal, draftVal)) continue;
+      if (
+        collectionHasStructuralChange(
+          topLevelSide(asBlockEditorValue(curVal)),
+          topLevelSide(asBlockEditorValue(draftVal))
+        )
+      )
+        return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether the document's (or a block's element type's) structure has
+ * changed since the draft was saved: a property the draft has a value for no
+ * longer exists on the current document, or exists on both sides but nested
+ * inside a block whose element type lost a property. A draft like this can't
+ * be safely applied (`setPropertyValue` would be writing an alias Umbraco no
+ * longer knows about), so callers should discard it rather than show/apply it.
+ */
+export function hasStructuralChange(
+  current: DraftContent | undefined,
+  draft: DraftContent | undefined
+): boolean {
+  for (const v of draft?.values ?? []) {
+    const key = buildValueKey(v.alias, v.culture ?? null, v.segment ?? null);
+    const currentVal = current?.values?.find(
+      (cv) => buildValueKey(cv.alias, cv.culture ?? null, cv.segment ?? null) === key
+    );
+    if (!currentVal) return true; // property removed from the content type
+
+    if (!isDecomposable(currentVal.value, v.value)) continue;
+    if (
+      collectionHasStructuralChange(
+        topLevelSide(asBlockEditorValue(currentVal.value)),
+        topLevelSide(asBlockEditorValue(v.value))
+      )
+    )
+      return true;
+  }
+  return false;
+}
+
 /** Builds the per-row comparison between current content and a draft. */
 export function buildDiffRows(
   current: DraftContent | undefined,

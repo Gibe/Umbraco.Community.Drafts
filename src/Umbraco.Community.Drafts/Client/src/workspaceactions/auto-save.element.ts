@@ -13,7 +13,7 @@ import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { DRAFT_DIFF_MODAL_TOKEN, type DraftDiffModalData, type DraftDiffModalValue } from "./draft-diff-modal.token.js";
 import { buildValueKey, buildVariantKey } from "./draft-row-key.js";
-import { buildDiffRows, mergeBlockEditorValue, type DraftDiffRow } from "./draft-diff.js";
+import { buildDiffRows, hasStructuralChange, mergeBlockEditorValue, type DraftDiffRow } from "./draft-diff.js";
 
 @customElement("drafts-auto-save-action")
 export default class DraftsAutoSaveElement extends UmbLitElement {
@@ -162,14 +162,36 @@ export default class DraftsAutoSaveElement extends UmbLitElement {
         // (force-loaded via ?draft=true, where no diff modal is shown).
         let selectedKeys: Set<string> | undefined;
         let diffRows: DraftDiffRow[] = [];
-        let currentValues: Array<{ alias: string; value?: unknown; culture?: string | null; segment?: string | null }> = [];
+        const currentValues: Array<{ alias: string; value?: unknown; culture?: string | null; segment?: string | null }> =
+          this._workspaceContext?.getValues() ?? [];
+        const currentVariants = this._workspaceContext?.getVariants() ?? [];
+        const currentContent = { values: currentValues as any, variants: currentVariants as any };
+
+        // The document's (or a block's element type's) structure may have
+        // changed since the draft was saved — e.g. a property was removed.
+        // Applying such a draft could write back a value for a property
+        // Umbraco no longer knows about, so discard it instead.
+        if (hasStructuralChange(currentContent, data)) {
+          await fetch(`/umbraco/drafts/api/v1/drafts/${this._nodeKey}`, {
+            method: "DELETE",
+            credentials: "include",
+            headers,
+          });
+
+          this._notificationContext?.peek("danger", {
+            data: {
+              headline: "Draft discarded",
+              message:
+                "This document's fields have changed since the draft was saved, so it's no longer safe to apply. The draft has been removed.",
+            },
+          });
+
+          window.dispatchEvent(new CustomEvent("drafts-updated"));
+          return;
+        }
 
         // If not force loading, ask the user
         if (!forceLoad) {
-          currentValues = this._workspaceContext?.getValues() ?? [];
-          const currentVariants = this._workspaceContext?.getVariants() ?? [];
-          const currentContent = { values: currentValues as any, variants: currentVariants as any };
-
           // If the draft is identical to the current content there is nothing
           // to review — delete it quietly instead of showing the modal.
           diffRows = buildDiffRows(currentContent, data);
